@@ -84,6 +84,7 @@ The first version does not need:
 - image optimization;
 - drag-and-drop handling;
 - multiple images in one paste;
+- mixed image/text clipboard handling;
 - sidebar UI;
 - webview UI;
 - image preview;
@@ -604,7 +605,7 @@ Choose and document a minimum stable VS Code version and a matching `engines.vsc
 
 - OS clipboard PNG/JPEG/WebP access on the supported desktop platforms;
 - ordinary Cmd+V / Ctrl+V precedence with built-in Markdown image paste enabled;
-- cancellation and mixed image/text clipboard fallback;
+- cancellation for single-image clipboard input and unaffected normal text paste;
 - selection of alternative paste edits without unwanted prompts or file writes;
 - a lifecycle that prompts and commits only for the selected operation, supports no-clobber creation, and handles cancellation/insertion failure as specified;
 - multiple paste ranges and Undo behavior.
@@ -617,14 +618,14 @@ Record compatibility results before approving an implementation approach. For ea
 | --- | --- |
 | Ordinary paste precedence | Cmd+V / Ctrl+V selects this extension with built-in Markdown image paste enabled. |
 | Selected-edit-only lifecycle | Merely offering an edit causes neither a filename prompt nor directory/file creation; selecting it permits the required prompt and commit. |
-| Clipboard representations | PNG, JPEG, and WebP access; alternative representations versus genuinely multiple images; mixed image/text input. |
+| Clipboard representations | PNG, JPEG, and WebP access; alternative representations versus genuinely multiple images. Mixed image/text handling is outside v1 scope. |
 | Cancellation and fallback | Cancelling before commit produces no image write and leaves normal fallback available. |
 | Save and insertion outcome | Complete save precedes link insertion; insertion failure after saving can be detected and reported with the saved path. |
 | Multiple ranges and Undo | One prompt and image serve all ranges; selections are replaced; Undo retains the image. |
 
 Keep implementation planning conditional on these results. A blocked requirement prevents approval of the affected implementation approach until the requirement is verified or replacement behavior is explicitly approved. Results on one operating system do not establish support on another; record platform-specific blocked checks and the manual checks still needed.
 
-Initial verification will use current stable desktop VS Code on macOS. The user will perform manual desktop and real-clipboard checks in a dedicated test workspace and isolated VS Code profile, with the built-in Markdown image provider enabled and unrelated extensions disabled. Record the actual macOS and VS Code versions with the results. Windows and Linux remain intended v1 platforms but unverified until their checks are performed; macOS results alone do not satisfy cross-platform release readiness. No live compatibility check has yet been recorded as verified.
+Initial verification uses current stable desktop VS Code on macOS. The user performs manual desktop and real-clipboard checks in a dedicated test workspace and isolated VS Code profile, with the built-in Markdown image provider enabled and unrelated extensions disabled. Record the actual macOS and VS Code versions with the results. Windows and Linux remain intended v1 platforms but unverified until their checks are performed; macOS results alone do not satisfy cross-platform release readiness. User-reported observations and remaining evidence gaps are recorded in `sdlc/compatibility.md`; reports about the diagnostic probe do not establish production file-saving guarantees.
 
 ---
 
@@ -889,7 +890,7 @@ The first release is complete when all of the following work:
 - [ ] Filename-component and full-path limits are checked for every generated candidate, including collision suffixes; over-limit names offer correction before saving without silent truncation, or fail clearly without a link if correction is unavailable after saving begins.
 - [ ] Absolute, escaping, and symlink/junction destination routes below the resolved workspace root are rejected before writing.
 - [ ] Path safety is revalidated immediately before directory/file creation; user-facing security documentation explains that hostile concurrent replacement of destination or parent directories is outside the v1 guarantee, without weakening no-clobber collision handling.
-- [ ] Cancelling the filename prompt produces no image write from this extension and allows normal fallback, including mixed image/text clipboard content.
+- [ ] Cancelling the filename prompt produces no image write from this extension and allows normal fallback for supported single-image clipboard input. Mixed image/text clipboard handling is outside v1 scope.
 - [ ] Unselected paste edits create no directories or image files.
 - [ ] If the original document changes, closes, or moves during the filename prompt, this extension abandons the operation, explains the invalidation, and does not save an image or apply stale ranges; any image already saved before detection is retained and its path reported.
 - [ ] Changing the destination setting during the filename prompt does not redirect the current paste; the captured destination is revalidated and the new setting applies to subsequent pastes.

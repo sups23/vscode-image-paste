@@ -5,6 +5,8 @@ interface ProbeEdit extends vscode.DocumentPasteEdit {
   operation: number;
   document: vscode.TextDocument;
   version: number;
+  imageBytes: Uint8Array;
+  mime: string;
 }
 
 export function registerCompatibilityProbe(context: vscode.ExtensionContext): void {
@@ -23,7 +25,7 @@ export function registerCompatibilityProbe(context: vscode.ExtensionContext): vo
     remote: !!vscode.env.remoteName,
   });
   const provider: vscode.DocumentPasteEditProvider<ProbeEdit> = {
-    provideDocumentPasteEdits(document, ranges, transfer, pasteContext, token) {
+    async provideDocumentPasteEdits(document, ranges, transfer, pasteContext, token) {
       const folder = vscode.workspace.getWorkspaceFolder(document.uri);
       if (!eligibleDocument({ language: document.languageId, scheme: document.uri.scheme,
         filename: document.fileName, untitled: document.isUntitled,
@@ -33,7 +35,28 @@ export function registerCompatibilityProbe(context: vscode.ExtensionContext): vo
       const mimes = Array.from(transfer, ([mime]) => mime);
       const mime = preferredMime(mimes);
       if (!mime || token.isCancellationRequested) { return undefined; }
+      const imageFile = transfer.get(mime)?.asFile();
+      if (!imageFile) {
+        log('image-bytes-unavailable', { mime, mimes });
+        return undefined;
+      }
       const operation = ++sequence;
+      const version = document.version;
+      let bytes: Uint8Array;
+      try {
+        // VS Code releases its clipboard file cache after this provider call returns.
+        bytes = await imageFile.data();
+        log('image-bytes-read', { operation, mime, byteLength: bytes.byteLength,
+          phase: 'provide', cancelled: token.isCancellationRequested });
+      } catch {
+        log('image-bytes-read-failed', { operation, phase: 'provide' });
+        return undefined;
+      }
+      if (token.isCancellationRequested || document.isClosed
+        || document.version !== version || bytes.byteLength === 0) {
+        log('abandoned-after-read', { operation });
+        return undefined;
+      }
       log('offered', { operation, mimes, ranges: ranges.length, version: document.version,
         trigger: pasteContext.triggerKind, fileRepresentations: imageMimes
           .filter(type => transfer.get(type)?.asFile() !== undefined) });
@@ -41,7 +64,9 @@ export function registerCompatibilityProbe(context: vscode.ExtensionContext): vo
         'Image paste compatibility probe (does not save images)', kind) as ProbeEdit;
       edit.operation = operation;
       edit.document = document;
-      edit.version = document.version;
+      edit.version = version;
+      edit.imageBytes = bytes;
+      edit.mime = mime;
       return [edit];
     },
     async resolveDocumentPasteEdit(edit, token) {
@@ -78,7 +103,20 @@ export function registerCompatibilityProbe(context: vscode.ExtensionContext): vo
         cancelled: token.isCancellationRequested, closed: edit.document.isClosed,
         changed: edit.document.version !== edit.version });
       // Empty insertion is experimental only: it is NOT a verified fallback mechanism.
-      if (result === undefined) { edit.insertText = ''; }
+      if (result === undefined) {
+        edit.insertText = '';
+        return edit;
+      }
+      {
+        const bytes = edit.imageBytes;
+        log('image-bytes-ready', { operation: edit.operation, mime: edit.mime,
+          byteLength: bytes.byteLength, phase: 'resolve' });
+        if (token.isCancellationRequested || edit.document.isClosed
+          || edit.document.version !== edit.version || bytes.byteLength === 0) {
+          edit.insertText = '';
+          log('abandoned-after-read', { operation: edit.operation });
+        }
+      }
       return edit;
     },
   };

@@ -38,7 +38,7 @@ event with proof that an edit was selected: record when it actually occurs.
 | Alternative edit | Use Paste As with the same clipboard image and choose another provider | Does merely offering the probe prompt? Does resolution happen before selection? |
 | Formats | Repeat with actual PNG, JPEG, and WebP clipboard images | Advertised MIME types and file representations; record unavailable input sources |
 | Multiple images | Copy multiple images using an app that supports it | Does the API expose separate images or indistinguishable representations? |
-| Mixed content | Copy image plus text from an app that provides both | MIME types and behavior on accepting versus cancelling |
+| Mixed content | Not required | User explicitly excluded mixed image/text handling from v1 |
 | Cancel | Press Escape at the probe prompt | Does normal fallback occur, does nothing happen, or does another provider act? |
 | Text | Copy plain text, then Cmd+V | Normal paste, no probe prompt |
 | Multiple ranges | Create two cursors/selections and paste | One prompt, marker at both ranges, selection replacement |
@@ -51,6 +51,14 @@ The prompt accepts any stem; validation and image saving are deliberately not
 implemented. Cancellation currently returns an empty insertion for experimentation,
 which may suppress rather than preserve normal fallback. Report that as a blocker,
 not a successful cancellation implementation.
+
+On screenshot paste, check for `image-bytes-read` with `phase: "provide"` and a nonzero
+`byteLength`. After accepting, expect `image-bytes-ready` with `phase: "resolve"`.
+The bytes are buffered in memory before offering the edit because clipboard file
+access expires after the initial provider call returns. No prompt or filesystem
+write occurs while offering an edit. This proves byte access only for that input, not image
+identity or file saving. `image-bytes-unavailable` or `image-bytes-read-failed`
+indicates a blocked clipboard case. Byte contents are never logged or saved.
 
 ## Separate unresolved checks
 
