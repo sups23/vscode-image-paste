@@ -1,0 +1,24 @@
+{
+  "name": "markdown-image-paste",
+  "displayName": "Markdown Image Paste Compatibility Probe",
+  "description": "Development-only clipboard and paste lifecycle probe; not a production image saver.",
+  "version": "0.0.1",
+  "private": true,
+  "engines": { "vscode": "^1.100.0" },
+  "extensionKind": ["ui"],
+  "main": "./out/extension.js",
+  "activationEvents": ["onLanguage:markdown"],
+  "scripts": {
+    "compile": "node node_modules/typescript/bin/tsc -p .",
+    "typecheck": "node node_modules/typescript/bin/tsc -p . --noEmit",
+    "lint": "node node_modules/eslint/bin/eslint.js src",
+    "test": "npm run compile && node --test test/unit/*.test.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "1.100.0",
+    "typescript": "~5.8.3",
+    "eslint": "^9.0.0",
+    "typescript-eslint": "^8.0.0"
+  }
+}
