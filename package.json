@@ -3,6 +3,13 @@
   "displayName": "Markdown Image Paste",
   "description": "Save clipboard images with custom filenames and workspace-relative Markdown links.",
   "version": "0.0.1",
+  "publisher": "sups23",
+  "author": "Suprav Kandel",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sups23/vscode-image-paste.git"
+  },
   "private": true,
   "engines": { "vscode": "^1.100.0" },
   "extensionKind": ["ui"],
@@ -24,6 +31,7 @@
     ]
   },
   "scripts": {
+    "vscode:prepublish": "npm run compile",
     "compile": "node node_modules/typescript/bin/tsc -p .",
     "typecheck": "node node_modules/typescript/bin/tsc -p . --noEmit",
     "lint": "node node_modules/eslint/bin/eslint.js src",
