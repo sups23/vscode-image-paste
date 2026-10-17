@@ -1,6 +1,6 @@
 {
-  "name": "markdown-image-paste",
-  "displayName": "Markdown Image Paste",
+  "name": "markdown-snapsave",
+  "displayName": "Markdown SnapSave",
   "description": "Save clipboard images with custom filenames and workspace-relative Markdown links.",
   "version": "0.0.1",
   "publisher": "sups23",
