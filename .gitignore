@@ -2,3 +2,6 @@ node_modules/
 out/
 *.vsix
 .probe-data/
+!.vscode/
+!.vscode/launch.json
+!.vscode/tasks.json

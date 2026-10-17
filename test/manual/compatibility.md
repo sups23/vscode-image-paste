@@ -1,5 +1,8 @@
 # macOS compatibility probe
 
+Historical diagnostic instructions: production activation now replaces this probe.
+For the current F5 build follow `test/manual/acceptance.md`; it saves actual images.
+
 This is a development probe, not the finished image-paste extension. It never saves
 images. Built-in providers may still save files; use only a disposable test workspace.
 

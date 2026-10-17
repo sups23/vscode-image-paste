@@ -1,0 +1,20 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Compile Image Paste Probe",
+      "type": "npm",
+      "script": "compile",
+      "problemMatcher": "$tsc",
+      "group": "build",
+      "dependsOn": "Prepare Image Paste Test Workspace"
+    },
+    {
+      "label": "Prepare Image Paste Test Workspace",
+      "type": "process",
+      "command": "node",
+      "args": ["${workspaceFolder}/scripts/prepareDevelopment.cjs"],
+      "problemMatcher": []
+    }
+  ]
+}

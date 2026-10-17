@@ -4,3 +4,9 @@ test/**
 sdlc/**
 .probe-data/**
 **/*.map
+.vscode/**
+scripts/**
+out/compatibilityProbe.js
+out/probePolicy.js.map
+eslint.config.mjs
+tsconfig.json

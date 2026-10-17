@@ -1,13 +1,28 @@
 {
   "name": "markdown-image-paste",
-  "displayName": "Markdown Image Paste Compatibility Probe",
-  "description": "Development-only clipboard and paste lifecycle probe; not a production image saver.",
+  "displayName": "Markdown Image Paste",
+  "description": "Save clipboard images with custom filenames and workspace-relative Markdown links.",
   "version": "0.0.1",
   "private": true,
   "engines": { "vscode": "^1.100.0" },
   "extensionKind": ["ui"],
   "main": "./out/extension.js",
   "activationEvents": ["onLanguage:markdown"],
+  "contributes": {
+    "configuration": {
+      "title": "Markdown Image Paste",
+      "properties": {
+        "markdownImagePaste.destination": {
+          "type": "string", "scope": "resource", "default": "qa/screenshots",
+          "description": "Workspace-relative folder for pasted images. Use / separators."
+        }
+      }
+    },
+    "commands": [
+      { "command": "markdownImagePaste.setDestination", "title": "Markdown Images: Set Destination Folder" },
+      { "command": "markdownImagePaste.toggleLifecycleDiagnostics", "title": "Markdown Images: Toggle Lifecycle Diagnostics" }
+    ]
+  },
   "scripts": {
     "compile": "node node_modules/typescript/bin/tsc -p .",
     "typecheck": "node node_modules/typescript/bin/tsc -p . --noEmit",

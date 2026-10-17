@@ -95,7 +95,7 @@ The first version does not need:
 - browser VS Code and virtual filesystems;
 - untitled documents, documents outside a workspace, and non-`.md` files;
 - overwriting existing files;
-- deleting saved images on Undo.
+- automatic image deletion, orphan cleanup, and image-reference scanning.
 
 These can be added later if required.
 
@@ -201,7 +201,7 @@ Unsupported formats and genuinely multiple-image inputs are not handled and allo
 
 The intended experience is automatic handling on Cmd+V / Ctrl+V, not a required Paste As selection. Provider registration alone does not guarantee precedence over VS Code's built-in Markdown image provider or other extensions. Validate precedence and clipboard access as described in section 17 before implementation is considered ready.
 
-Cancelling this extension's prompts abandons its edit and permits normal VS Code paste fallback. Other clipboard content or another image provider may still modify the document; cancellation does not promise a globally cancelled paste.
+Approved behavior revision: cancelling the selected filename prompt produces no document or file changes from this extension and does not automatically invoke fallback. The user may paste again using another provider. Cancellation must preserve selections.
 
 ---
 
@@ -239,7 +239,9 @@ Insert Markdown image syntax at every paste range
 
 This is the logical user flow, not a prescription to write files while generating potential paste edits. Do not create directories or image files for an edit that is merely offered and never selected. Respect cancellation before committing a file.
 
-If saving succeeds but the Markdown edit is not applied, keep the image and notify the user with its path. After a successful paste, Undo removes the Markdown insertion but retains the saved image. Do not automatically delete image files.
+After complete saving, notify the user with the actual image path without claiming confirmed link insertion. The public paste API does not guarantee detection of every final insertion failure. Retain the image after an unconfirmed or failed insertion. Approved retention behavior: Undo removes the inserted links but leaves the saved image on disk. Switching to another paste provider also leaves our image on disk. Native editor Redo restores the links to the retained image; it does not recreate or overwrite image files.
+
+Never automatically delete images, destination directories, or incomplete artifacts. Users may manually remove unwanted files. No ownership tracking, reference scanning, or retrospective cleanup is required. If a retained image is externally removed or replaced, Redo does not repair or recreate it.
 
 For multiple cursors or selections, prompt once, save one image, and insert the same link at every supplied paste range, replacing selected text as normal paste does. Use the original paste document and ranges rather than whichever editor happens to be active after the prompt.
 
@@ -457,6 +459,10 @@ Correct:
 
 Path separators in Markdown links should use `/`, including on Windows.
 
+After inserting the image reference, place each cursor inside the empty square
+brackets, ready for alt-text entry, rather than at the end of the link. The stored
+Markdown remains `![](relative/path)` until the user types alt text.
+
 Calculate the path relative to the Markdown document's parent directory. Encode path segments so spaces, `#`, `%`, parentheses, and other Markdown/URI-sensitive characters cannot break the link. Preserve `/` separators and `..` navigation segments; avoid double encoding. This applies to destination directories as well as filenames.
 
 ---
@@ -605,9 +611,9 @@ Choose and document a minimum stable VS Code version and a matching `engines.vsc
 
 - OS clipboard PNG/JPEG/WebP access on the supported desktop platforms;
 - ordinary Cmd+V / Ctrl+V precedence with built-in Markdown image paste enabled;
-- cancellation for single-image clipboard input and unaffected normal text paste;
+- cancellation with selection preservation for single-image clipboard input and unaffected normal text paste;
 - selection of alternative paste edits without unwanted prompts or file writes;
-- a lifecycle that prompts and commits only for the selected operation, supports no-clobber creation, and handles cancellation/insertion failure as specified;
+- a lifecycle that prompts and commits only for the selected operation, supports no-clobber creation, and reports completed saves without claiming confirmed final insertion;
 - multiple paste ranges and Undo behavior.
 
 Investigate deferred paste-edit resolution and additional edits, but do not assume they provide transactional file creation, cancellation, or insertion-failure notification. Establish the actual lifecycle and guarantees experimentally. If the public APIs cannot meet a requirement, record the blocker and obtain approval for a revised behavior instead of silently weakening the specification.
@@ -619,9 +625,9 @@ Record compatibility results before approving an implementation approach. For ea
 | Ordinary paste precedence | Cmd+V / Ctrl+V selects this extension with built-in Markdown image paste enabled. |
 | Selected-edit-only lifecycle | Merely offering an edit causes neither a filename prompt nor directory/file creation; selecting it permits the required prompt and commit. |
 | Clipboard representations | PNG, JPEG, and WebP access; alternative representations versus genuinely multiple images. Mixed image/text handling is outside v1 scope. |
-| Cancellation and fallback | Cancelling before commit produces no image write and leaves normal fallback available. |
-| Save and insertion outcome | Complete save precedes link insertion; insertion failure after saving can be detected and reported with the saved path. |
-| Multiple ranges and Undo | One prompt and image serve all ranges; selections are replaced; Undo retains the image. |
+| Cancellation | Cancelling before commit produces no file or document changes, preserves selections, and does not automatically fall back (approved revision). |
+| Save and insertion outcome | Complete save precedes returning the link; report the saved path without claiming confirmed insertion. Detection of every final insertion failure is not guaranteed (approved revision). |
+| Multiple ranges, switching, Undo and Redo | One prompt/image serves all ranges. Undo removes links but retains the image; native Redo restores links to that retained image. Provider switching retains our image. No automatic deletion, recreation, or reference scanning. |
 
 Keep implementation planning conditional on these results. A blocked requirement prevents approval of the affected implementation approach until the requirement is verified or replacement behavior is explicitly approved. Results on one operating system do not establish support on another; record platform-specific blocked checks and the manual checks still needed.
 
@@ -816,13 +822,13 @@ Unable to save pasted image.
 
 Include the underlying error in developer logs where useful.
 
-Do not insert this extension's Markdown link if the image cannot be saved. Allow normal paste fallback when declining the operation. If a file was created before a later failure, do not delete it automatically; report its path.
+Do not insert this extension's Markdown link if the image cannot be saved. Declining before offering an edit permits normal fallback; abandoning a selected operation produces a no-op rather than automatic fallback. If a file was created before a later failure, do not delete it automatically; report its path.
 
 An image counts as saved only after all image bytes have been written and the file operation has completed successfully. A failure after file creation may leave an empty or truncated artifact. Retain that artifact, explicitly identify it as incomplete in the notification, and include its actual path. Never describe it as a successfully saved image or insert a link to it.
 
 ### Image saved but link not inserted
 
-Keep the saved image and show a message explaining that the Markdown link was not inserted, including the image's actual path. Never report the operation as fully successful.
+Always report the completed save's actual path without claiming confirmed insertion. If invalidation or another known failure prevents returning the link, explain that and retain the image. Automatic detection of every final application failure is outside the approved v1 guarantee.
 
 ### Unsupported input or environment
 
@@ -830,7 +836,7 @@ Decline unsupported image formats, genuinely multiple-image inputs, non-`.md` do
 
 ### User cancels filename prompt
 
-Abandon this extension's paste edit without saving an image. Allow normal VS Code paste fallback; another provider or clipboard text may still modify the Markdown document.
+Abandon this extension's paste edit without saving an image or changing the document, including selected text. No automatic fallback is required; the user can paste again with another provider.
 
 ---
 
@@ -890,15 +896,17 @@ The first release is complete when all of the following work:
 - [ ] Filename-component and full-path limits are checked for every generated candidate, including collision suffixes; over-limit names offer correction before saving without silent truncation, or fail clearly without a link if correction is unavailable after saving begins.
 - [ ] Absolute, escaping, and symlink/junction destination routes below the resolved workspace root are rejected before writing.
 - [ ] Path safety is revalidated immediately before directory/file creation; user-facing security documentation explains that hostile concurrent replacement of destination or parent directories is outside the v1 guarantee, without weakening no-clobber collision handling.
-- [ ] Cancelling the filename prompt produces no image write from this extension and allows normal fallback for supported single-image clipboard input. Mixed image/text clipboard handling is outside v1 scope.
+- [ ] Cancelling the filename prompt produces no image write or document change, preserves selected text, and does not automatically invoke fallback (approved revision). Mixed image/text clipboard handling is outside v1 scope.
 - [ ] Unselected paste edits create no directories or image files.
 - [ ] If the original document changes, closes, or moves during the filename prompt, this extension abandons the operation, explains the invalidation, and does not save an image or apply stale ranges; any image already saved before detection is retained and its path reported.
 - [ ] Changing the destination setting during the filename prompt does not redirect the current paste; the captured destination is revalidated and the new setting applies to subsequent pastes.
 - [ ] Multiple paste ranges prompt once, save one image, and receive the same link, replacing selections normally.
-- [ ] Undo removes the inserted link(s) but retains the image.
+- [ ] Undo removes inserted links and retains the saved image on disk.
+- [ ] Native Redo restores links to the retained image without recreating or overwriting files; externally removed/replaced images are not repaired.
+- [ ] Switching to a built-in/default paste retains our saved image. No automatic deletion, ownership tracking, or image-reference scanning is performed.
 - [ ] Write failures insert no link from this extension and report a clear error.
 - [ ] Empty or truncated artifacts from failed writes are retained, reported as incomplete with their actual path, and never treated as successfully saved images.
-- [ ] If an image is saved but link insertion fails, the image is retained and a notification includes its path.
+- [ ] Every complete save reports its actual path without claiming confirmed link insertion; saved images are retained even if final insertion fails. Detection of every final insertion failure is not guaranteed (approved revision).
 - [ ] Read-only documents/destinations are handled without false success reports.
 - [ ] The minimum VS Code version and compatibility-gate results are documented, including any blocked requirements.
 - [ ] Non-Markdown editors are unaffected.
@@ -958,4 +966,4 @@ Cmd+V
 → Markdown link inserted
 ```
 
-Cancellation permits normal paste fallback. Undo retains the image. The destination-setting command is included; no sidebar, webview, or image-editing UI is required for the first version. Automatic paste handling remains subject to the compatibility gate in section 17.
+Cancellation preserves the document without automatic fallback. Complete saves report the saved path without claiming confirmed insertion. Undo and provider switching retain saved images; native Redo restores links to retained images without filesystem restoration. No automatic cleanup or image-reference scanning is required. Incomplete artifacts are retained. The destination-setting command is included; no sidebar, webview, or image-editing UI is required for the first version. Automatic paste handling remains subject to the compatibility gate in section 17.

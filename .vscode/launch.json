@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Markdown Image Paste",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}",
+        "--user-data-dir=${workspaceFolder}/.probe-data/user-data",
+        "--extensions-dir=${workspaceFolder}/.probe-data/extensions",
+        "${workspaceFolder}/.probe-data/workspace"
+      ],
+      "outFiles": ["${workspaceFolder}/out/**/*.js"],
+      "preLaunchTask": "Compile Image Paste Probe"
+    }
+  ]
+}
